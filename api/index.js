@@ -82,49 +82,43 @@ mqttClient.on("message", async (topic, message) => {
   try {
     // const data = JSON.parse(message.toString());
     const data = message.toString();
-    // const { temperature } = data;
 
-    let topicArr = topic.split("/").length;
+    let topicArr = topic.split("/");
+
+    let device_id = "esp-1";
 
     if (topicArr[2] === "eeg") {
       await pool.query(
-        `INSERT INTO eeg (device_topic, data, "timestamp") VALUES ($1, $2, $3)`,
-        [topic, data, moment()]
+        `INSERT INTO eeg (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        [topic, device_id, data, moment()]
       );
     } else if (topicArr[2] === "ecg") {
       await pool.query(
-        `INSERT INTO ecg (device_topic, data, "timestamp") VALUES ($1, $2, $3)`,
-        [topic, data, moment()]
+      `INSERT INTO ecg (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        [topic, device_id, data, moment()]
       );
     } else if (topicArr[2] === "emg") {
       await pool.query(
-        `INSERT INTO emg (device_topic, data, "timestamp") VALUES ($1, $2, $3)`,
-        [topic, data, moment()]
+       `INSERT INTO emg (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        [topic, device_id, data, moment()]
       );
     } else if (topicArr[2] === "eog") {
       await pool.query(
-        `INSERT INTO eog (device_topic, data, "timestamp") VALUES ($1, $2, $3)`,
-        [topic, data, moment()]
+       `INSERT INTO eog (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        [topic, device_id, data, moment()]
       );
     } else if (topicArr[2] === "temperature") {
       await pool.query(
-        `INSERT INTO temperature (device_topic, data, "timestamp") VALUES ($1, $2, $3)`,
-        [topic, data, moment()]
+        `INSERT INTO temperature (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        [topic, device_id, data, moment()]
       );
     } else if (topicArr[2] === "spo2") {
       await pool.query(
-        `INSERT INTO spo2 (device_topic, data, "timestamp") VALUES ($1, $2, $3)`,
-        [topic, data, moment()]
+       `INSERT INTO spo2 (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        [topic, device_id, data, moment()]
       );
     }
-
-    // const device_topic = topic;
-    // Insert into sensor_data table
-    // await pool.query(
-    //   `INSERT INTO sensor_data (device_topic, temperature_data, "timestamp") VALUES ($1, $2, $3)`,
-    //   [device_topic, temperature, moment()]
-    // );
-    // console.log("Data inserted successfully.");
+    console.log("Data inserted successfully.");
   } catch (error) {
     console.error("Error processing message:", error);
   }
