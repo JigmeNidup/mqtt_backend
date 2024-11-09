@@ -1,11 +1,21 @@
 require("dotenv").config();
 const express = require("express");
+const fs = require("fs");
 const moment = require("moment");
 const mqtt = require("mqtt");
+const path = require("path");
 const { Pool } = require("pg");
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+let caCert = "";
+try {
+  const absolutePath = path.join(process.cwd(), "./ca.crt");
+  caCert = fs.readFileSync(absolutePath);
+} catch (error) {
+  console.log(error);
+}
 
 // Set up PostgreSQL connection
 const pool = new Pool({
@@ -14,10 +24,11 @@ const pool = new Pool({
   database: process.env.PSQL_DATABASE,
   password: process.env.PSQL_PASSWORD,
   port: process.env.PSQL_PORT,
-  //   ssl: {
-  //     rejectUnauthorized: false,
-  //     ca: process.env.PG_CA_CERT // If using a trusted CA for secure connection
-  //   }
+  ssl: {
+    rejectUnauthorized: true,
+    // ca: process.env.PG_CA_CERT // If using a trusted CA for secure connection
+    ca: caCert.toString(),
+  },
 });
 
 // Set up MQTT client
@@ -146,7 +157,7 @@ app.get("/api/data/:type", async (req, res) => {
       res.json({ result: false });
     }
 
-    res.json(result.rows);
+    // res.json(result.rows);
   } catch (error) {
     console.error("Error fetching sensor data:", error);
     res.json({ result: false });
