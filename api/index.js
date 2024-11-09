@@ -87,6 +87,9 @@ mqttClient.on("message", async (topic, message) => {
 
     let device_id = "esp-1";
 
+    // console.log(data);
+    
+
     if (topicArr[2] === "eeg") {
       await pool.query(
         `INSERT INTO eeg (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
@@ -118,7 +121,7 @@ mqttClient.on("message", async (topic, message) => {
         [topic, device_id, data, moment()]
       );
     }
-    console.log("Data inserted successfully.");
+    // console.log("Data inserted successfully.");
   } catch (error) {
     console.error("Error processing message:", error);
   }
@@ -130,22 +133,22 @@ app.get("/api/data/:type", async (req, res) => {
     const type = req.params.type;
     let result;
     if (type === "eeg") {
-      result = await pool.query("SELECT * FROM eeg ORDER BY id DESC");
+      result = await pool.query("SELECT * FROM eeg ORDER BY id DESC LIMIT 1000");
       res.json({ result: true, data: result.rows });
     } else if (type === "ecg") {
-      result = await pool.query("SELECT * FROM ecg ORDER BY id DESC");
+      result = await pool.query("SELECT * FROM ecg ORDER BY id DESC LIMIT 1000");
       res.json({ result: true, data: result.rows });
     } else if (type === "emg") {
-      result = await pool.query("SELECT * FROM emg ORDER BY id DESC");
+      result = await pool.query("SELECT * FROM emg ORDER BY id DESC LIMIT 1000");
       res.json({ result: true, data: result.rows });
     } else if (type === "eog") {
-      result = await pool.query("SELECT * FROM eog ORDER BY id DESC");
+      result = await pool.query("SELECT * FROM eog ORDER BY id DESC LIMIT 1000");
       res.json({ result: true, data: result.rows });
     } else if (type === "temperature") {
-      result = await pool.query("SELECT * FROM temperature ORDER BY id DESC");
+      result = await pool.query("SELECT * FROM temperature ORDER BY id DESC LIMIT 1000");
       res.json({ result: true, data: result.rows });
     } else if (type === "spo2") {
-      result = await pool.query("SELECT * FROM spo2 ORDER BY id DESC");
+      result = await pool.query("SELECT * FROM spo2 ORDER BY id DESC LIMIT 1000");
       res.json({ result: true, data: result.rows });
     } else {
       res.json({ result: false });
