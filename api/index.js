@@ -5,9 +5,13 @@ const moment = require("moment");
 const mqtt = require("mqtt");
 const path = require("path");
 const { Pool } = require("pg");
+const sendMail = require("./mailer");
+const cors = require("cors");
 
 const app = express();
-const port = process.env.PORT || 3001;
+app.use(cors());
+
+const port = 3002;
 
 let caCert = "";
 try {
@@ -60,9 +64,9 @@ mqttClient.on("connect", () => {
     if (err) console.error("MQTT subscription error:", err);
     else console.log(`Subscribed to topic patient/1/eog`);
   });
-  mqttClient.subscribe("patient/1/temperature", (err) => {
+  mqttClient.subscribe("patient/1/temperature/body", (err) => {
     if (err) console.error("MQTT subscription error:", err);
-    else console.log(`Subscribed to topic patient/1/temperature`);
+    else console.log(`Subscribed to topic patient/1/temperature/body`);
   });
 
   mqttClient.subscribe("patient/1/spo2", (err) => {
@@ -77,6 +81,14 @@ mqttClient.on("error", (error) => {
   console.error("Connection error:", error);
 });
 
+let temp_alerts = true;
+
+setInterval(() => {
+  temp_alerts = true;
+}, 1000 * 60);
+
+let user_email = "jigmenidup8102003@gmail.com";
+
 // Insert data into PostgreSQL when a message is received
 mqttClient.on("message", async (topic, message) => {
   try {
@@ -88,7 +100,6 @@ mqttClient.on("message", async (topic, message) => {
     let device_id = "esp-1";
 
     // console.log(data);
-    
 
     if (topicArr[2] === "eeg") {
       await pool.query(
@@ -97,27 +108,52 @@ mqttClient.on("message", async (topic, message) => {
       );
     } else if (topicArr[2] === "ecg") {
       await pool.query(
-      `INSERT INTO ecg (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO ecg (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
         [topic, device_id, data, moment()]
       );
     } else if (topicArr[2] === "emg") {
       await pool.query(
-       `INSERT INTO emg (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO emg (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
         [topic, device_id, data, moment()]
       );
     } else if (topicArr[2] === "eog") {
       await pool.query(
-       `INSERT INTO eog (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO eog (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
         [topic, device_id, data, moment()]
       );
-    } else if (topicArr[2] === "temperature") {
+    } else if (topicArr[2] === "temperature/body") {
+      if (temp_alerts) {
+        if (Number(data) > 40.3) {
+          console.log("sent mail");
+
+          sendMail({
+            to: user_email,
+            subject: "Body Temperature Alerts!",
+            text: "",
+            html: `<div>Your Body temperature is HIGH ${data}*C <br>Risk of Hyperthermia </div>`,
+          });
+
+          temp_alerts = false;
+
+          await pool.query(
+            "INSERT INTO notifications(user_email,type,message,timestamp) VALUES($1,$2,$3,$4)",
+            [
+              user_email,
+              "temperature",
+              `Your Body temperature is HIGH ${data}*C, Risk of Hyperthermia`,
+              moment(),
+            ]
+          );
+        }
+      }
+
       await pool.query(
         `INSERT INTO temperature (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
         [topic, device_id, data, moment()]
       );
     } else if (topicArr[2] === "spo2") {
       await pool.query(
-       `INSERT INTO spo2 (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
+        `INSERT INTO spo2 (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
         [topic, device_id, data, moment()]
       );
     }
@@ -133,22 +169,34 @@ app.get("/api/data/:type", async (req, res) => {
     const type = req.params.type;
     let result;
     if (type === "eeg") {
-      result = await pool.query("SELECT * FROM eeg ORDER BY id DESC LIMIT 1000");
+      result = await pool.query(
+        "SELECT * FROM eeg ORDER BY id DESC LIMIT 3000"
+      );
       res.json({ result: true, data: result.rows });
     } else if (type === "ecg") {
-      result = await pool.query("SELECT * FROM ecg ORDER BY id DESC LIMIT 1000");
+      result = await pool.query(
+        "SELECT * FROM ecg ORDER BY id DESC LIMIT 3000"
+      );
       res.json({ result: true, data: result.rows });
     } else if (type === "emg") {
-      result = await pool.query("SELECT * FROM emg ORDER BY id DESC LIMIT 1000");
+      result = await pool.query(
+        "SELECT * FROM emg ORDER BY id DESC LIMIT 3000"
+      );
       res.json({ result: true, data: result.rows });
     } else if (type === "eog") {
-      result = await pool.query("SELECT * FROM eog ORDER BY id DESC LIMIT 1000");
+      result = await pool.query(
+        "SELECT * FROM eog ORDER BY id DESC LIMIT 3000"
+      );
       res.json({ result: true, data: result.rows });
     } else if (type === "temperature") {
-      result = await pool.query("SELECT * FROM temperature ORDER BY id DESC LIMIT 1000");
+      result = await pool.query(
+        "SELECT * FROM temperature ORDER BY id DESC LIMIT 300"
+      );
       res.json({ result: true, data: result.rows });
     } else if (type === "spo2") {
-      result = await pool.query("SELECT * FROM spo2 ORDER BY id DESC LIMIT 1000");
+      result = await pool.query(
+        "SELECT * FROM spo2 ORDER BY id DESC LIMIT 3000"
+      );
       res.json({ result: true, data: result.rows });
     } else {
       res.json({ result: false });
@@ -162,7 +210,7 @@ app.get("/api/data/:type", async (req, res) => {
 });
 
 app.get("/", async (req, res) => {
-  res.json({ test: "hi" });
+  res.json({ test: "MQTT BACKEND" });
 });
 // Start the Express server
 app.listen(port, () => {
