@@ -99,7 +99,7 @@ mqttClient.on("message", async (topic, message) => {
 
     let device_id = "esp-1";
 
-    // console.log(data);
+    // console.log(data, topicArr);
 
     if (topicArr[2] === "eeg") {
       await pool.query(
@@ -121,7 +121,7 @@ mqttClient.on("message", async (topic, message) => {
         `INSERT INTO eog (device_topic, device_id, data, "timestamp") VALUES ($1, $2, $3, $4)`,
         [topic, device_id, data, moment()]
       );
-    } else if (topicArr[2] === "temperature/body") {
+    } else if (topicArr[2] === "temperature" && topicArr[3] === "body") {
       if (temp_alerts) {
         if (Number(data) > 40.3) {
           console.log("sent mail");
